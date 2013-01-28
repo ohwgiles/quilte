@@ -1,5 +1,5 @@
 #include "quilte.hpp"
-
+#include "searchpanel.hpp"
 #include <QTabWidget>
 #include <QMenuBar>
 #include <QDesktopServices>
@@ -65,7 +65,7 @@ Quilte::Quilte() : QMainWindow() {
 	find->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_F));
 	addAction(find);
 	find->setIcon(QIcon::fromTheme("edit-find"));
-	QAction* findNext = searchMenu->addAction("Find Next", this, SLOT(findNext()));
+	QAction* findNext = searchMenu->addAction("Find Next", this, SLOT(searchNext()));
 	addAction(findNext);
 	findNext->setShortcut(QKeySequence(Qt::Key_F3));
 	findNext->setIcon(QIcon::fromTheme("edit-find"));
@@ -80,7 +80,28 @@ Quilte::Quilte() : QMainWindow() {
 
 	setMenuBar(menu_);
 	setCentralWidget(tabs_);
+
+	searchPanel_ = new SearchPanel(this);
+	searchPanel_->hide();
+	connect(searchPanel_, SIGNAL(visibilityChanged(bool)), this, SLOT(searchPanelVisibilityChanged(bool)));
+	connect(searchPanel_, SIGNAL(searchTerm(QString)), this, SLOT(searchTerm(QString)));
+	connect(searchPanel_, SIGNAL(nextResult()), this, SLOT(searchNext()));
+	addToolBar(Qt::BottomToolBarArea, searchPanel_);
 	connect(tabs_, SIGNAL(currentChanged(int)), this, SLOT(showTermAt(int)));
+}
+void Quilte::searchPanelVisibilityChanged(bool v) {
+	if(!v) currentTerm()->clearSearchResults();
+}
+
+void Quilte::searchTerm(QString s) {
+	if(s.length() > 2)
+		currentTerm()->findText(s);
+	else
+		currentTerm()->clearSearchResults();
+}
+
+void Quilte::searchNext() {
+	currentTerm()->findNext();
 }
 
 QVTermWidget* Quilte::currentTerm() {
@@ -102,6 +123,7 @@ void Quilte::newTab() {
 }
 
 void Quilte::showTermAt(int i) {
+	searchPanel_->hide();
 	if(i >= 0) {
 		tabs_->setTabText(i, currentTerm()->title());
 		tabs_->widget(i)->setFocus();
@@ -163,7 +185,8 @@ void Quilte::prevTab() {
 }
 
 void Quilte::find() {
-
+	searchPanel_->show();
+	searchPanel_->setFocus();
 }
 
 void Quilte::findNext() {

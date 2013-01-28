@@ -121,31 +121,31 @@ bool QVTermWidget::isWordChar(uint32_t c) {
 }
 
 QRect QVTermWidget::displayRect(PhyPos pos) {
-	return QRect(pos.pcol * cellHeight_,
-					 pos.prow * cellWidth_,
-					 cellHeight_,
-					 cellWidth_);
+	return QRect(pos.pcol * cellWidth_,
+					 pos.prow * cellHeight_,
+					 cellWidth_,
+					 cellHeight_);
 }
 
 QRect QVTermWidget::displayRect(VTermPos pos) {
-	return QRect(pos.col * cellHeight_,
-					 pos.row * cellWidth_,
-					 cellHeight_,
-					 cellWidth_);
+	return QRect(pos.col * cellWidth_,
+					 pos.row * cellHeight_,
+					 cellWidth_,
+					 cellHeight_);
 
 }
 
 QRect QVTermWidget::displayRect(VTermRect rect) {
 	if(rect.start_row == rect.end_row) {
-		return QRect(rect.start_col * cellHeight_, rect.start_row * cellWidth_, (rect.end_col-rect.start_col) * cellHeight_, cellWidth_);
+		return QRect(rect.start_col * cellWidth_, rect.start_row * cellHeight_, (rect.end_col-rect.start_col) * cellWidth_, cellHeight_);
 	} else {
-		return QRect(0, rect.start_row * cellWidth_, rect.end_col * cellHeight_, rect.end_row*cellWidth_);
+		return QRect(0, rect.start_row * cellHeight_, rect.end_col * cellWidth_, rect.end_row*cellHeight_);
 	}
 }
 
 QRect QVTermWidget::displayRect(PhyRect rect) {
 	return
-			QRect(rect.start_pcol * cellHeight_,rect.start_prow * cellWidth_,(rect.end_pcol - rect.start_pcol) * cellHeight_,(rect.end_prow - rect.start_prow) * cellWidth_);
+			QRect(rect.start_pcol * cellWidth_,rect.start_prow * cellHeight_,(rect.end_pcol - rect.start_pcol) * cellWidth_,(rect.end_prow - rect.start_prow) * cellHeight_);
 }
 
 void QVTermWidget::paintEvent(QPaintEvent * e) {
@@ -155,10 +155,10 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 	// clear the background first
 	p.fillRect(e->rect(), backgroundColour_);
 
-	int xmin = e->rect().x() / cellHeight_;
-	int ymin = e->rect().y() / cellWidth_;
-	int xmax = e->rect().width() / cellHeight_ + xmin;
-	int ymax = e->rect().height() / cellWidth_ + ymin;
+	int xmin = e->rect().x() / cellWidth_;
+	int ymin = e->rect().y() / cellHeight_;
+	int xmax = e->rect().width() / cellWidth_ + xmin;
+	int ymax = e->rect().height() / cellHeight_ + ymin;
 
 	for(ph_pos.prow = ymin; ph_pos.prow < ymax; ph_pos.prow++) {
 		for(ph_pos.pcol = xmin; ph_pos.pcol < xmax; ) {
@@ -206,10 +206,10 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 
 			if(cell.chars[0] != 0) { // there is something here
 				QString chr = QString::fromUcs4(cell.chars);
-				p.fillRect(ph_pos.pcol*cellHeight_, ph_pos.prow*cellWidth_,cellHeight_*cell.width,cellWidth_,p.background());
-				p.drawText(ph_pos.pcol*cellHeight_, ph_pos.prow*cellWidth_,cellHeight_*cell.width,cellWidth_,0,chr);
+				p.fillRect(ph_pos.pcol*cellWidth_, ph_pos.prow*cellHeight_,cellWidth_*cell.width,cellHeight_,p.background());
+				p.drawText(ph_pos.pcol*cellWidth_, ph_pos.prow*cellHeight_,cellWidth_*cell.width,cellHeight_,0,chr);
 			} else if(cursor_here && cursorShape_ == VTERM_PROP_CURSORSHAPE_BLOCK) {
-				p.fillRect(ph_pos.pcol*cellHeight_, ph_pos.prow*cellWidth_,cellHeight_*cell.width,cellWidth_, cursor_visible ? fg : bg);
+				p.fillRect(ph_pos.pcol*cellWidth_, ph_pos.prow*cellHeight_,cellWidth_*cell.width,cellHeight_, cursor_visible ? fg : bg);
 			}
 
 			if(cursor_visible && cursor_here && cursorShape_ != VTERM_PROP_CURSORSHAPE_BLOCK) {
@@ -228,6 +228,102 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 		}
 	}
 
+	QPen pen;
+	pen.setStyle(Qt::DotLine);
+	pen.setColor(foregroundColour_);
+	foreach(VTermRect r, searchResults_) {
+		r.start_row += scrollOffset_;
+		r.end_row +=scrollOffset_;
+		if((r.start_row >= ymin && r.start_row <= ymax) || (r.end_row >= ymin && r.end_row <= ymax)) {
+			p.setPen(pen);
+			p.drawRect(r.start_col*cellWidth_, r.start_row*cellHeight_, cellWidth_*(r.end_col-r.start_col +1),cellHeight_);
+		}
+	}
+
+}
+
+void QVTermWidget::findText(QString txt) {
+	QVector<uint32_t> ucs = txt.toUcs4();
+	const uint32_t* searchTermEnd = &ucs.constData()[ucs.count()-1];
+	const uint32_t* searchCursor = searchTermEnd;
+	searchResults_.clear();
+	VTermRect matchRange;
+	for(int j = numRows_-1; j>=-numBufferOffscreenLines_; --j) {
+		for(int i = numCols_-1; i>=0; --i) {
+			VTermScreenCell cell;
+			VTermPos pos = { .row = j, .col = i };
+			fetchCell(pos, &cell);
+			// match backwards
+			if(cell.chars[0] == *searchCursor) {
+				if(searchCursor == searchTermEnd) { //this is a new match
+					matchRange.end_col = i;
+					matchRange.end_row = j;
+					searchCursor--;
+				} else if(searchCursor == ucs.constData()) {
+					// if we made it to the end of the string, a match is found
+					matchRange.start_col = i;
+					matchRange.start_row = j;
+					searchResults_.append(matchRange);
+					// reset the cursor
+					searchCursor =  searchTermEnd;
+				} else searchCursor--;
+			} else // a mismatch has occurred, reset the cursor
+				searchCursor = searchTermEnd;
+		}
+	}
+	// if we've matched anything
+	if(searchResults_.count() > 0) {
+		// highlight the first matching one
+		hasHighlight_ = true;
+		highlightEndPos_.row = searchResults_.at(0).end_row;
+		highlightEndPos_.col = searchResults_.at(0).end_col;
+		highlightStartPos_.row = searchResults_.at(0).start_row;
+		highlightStartPos_.col = searchResults_.at(0).start_col;
+		// if it's not visible in the current scroll buffer, scroll there
+		int min = 0 - scrollOffset_;
+		int max = numRows_ - scrollOffset_;
+		if(!(highlightEndPos_.row > min && highlightEndPos_.row < max && highlightStartPos_.row > min && highlightStartPos_.row << max)) {
+			scroll(highlightStartPos_.row);
+		}
+	}
+	viewport()->update();
+}
+
+void QVTermWidget::findNext() {
+	qDebug() << "findNext";
+	int index = -1;
+	// first find the current selected one by comparing the highlight with
+	// the search results
+	if(hasHighlight_) {
+		for(int i = 0; i < searchResults_.count(); ++i) {
+			const VTermRect& p = searchResults_[i];
+			qDebug() << highlightEndPos_.row << p.end_row << highlightEndPos_.col << p.end_col << highlightStartPos_.row << p.start_row << highlightStartPos_.col << p.start_col;
+			if(highlightEndPos_.row == p.end_row && highlightEndPos_.col == p.end_col && highlightStartPos_.row == p.start_row && highlightStartPos_.col == p.start_col) {
+				index = i;
+				break;
+			}
+		}
+	}
+
+	// unless we came up with nothing, the one we're after is the next one
+	if(index < searchResults_.count()-1) index++;
+	const VTermRect& p = searchResults_[index];
+
+	// move the highlight
+	hasHighlight_ = true;
+	highlightEndPos_.row = p.end_row;
+	highlightEndPos_.col = p.end_col;
+	highlightStartPos_.row = p.start_row;
+	highlightStartPos_.col = p.start_col;
+
+	// now scroll there if it's not visible
+	int min = 0 - scrollOffset_;
+	int max = numRows_ - scrollOffset_;
+
+	if(!(p.start_row > min && p.start_row < max && p.end_row > min && p.end_row < max)) {
+		scroll(p.start_row);
+	} else
+	viewport()->update();
 }
 
 void QVTermWidget::blinkCursor() {
@@ -260,7 +356,10 @@ int QVTermWidget::damage(VTermRect rect) {
 int QVTermWidget::preScroll(VTermRect rect) {
 	if(rect.start_row != 0 || rect.start_col != 0 || rect.end_col != numCols_ || altScreenActive_)
 		return 0;
-
+	for(int i=0; i<searchResults_.count(); ++i) {
+		searchResults_[i].start_row--;
+		searchResults_[i].end_row--;
+	}
 	for(int row = 0; row < rect.end_row; row++) {
 		ScrollbackLine *linebuffer = NULL;
 		if(numBufferOffscreenLines_ == scrollBufferNumLines_) {
@@ -463,8 +562,8 @@ void QVTermWidget::inputMethodEvent(QInputMethodEvent *e) {
 
 void QVTermWidget::mousePressEvent(QMouseEvent * e) {
 	PhyPos ph_pos;
-	ph_pos.pcol = e->x() / cellHeight_;
-	ph_pos.prow = e->y() / cellWidth_;
+	ph_pos.pcol = e->x() / cellWidth_;
+	ph_pos.prow = e->y() / cellHeight_;
 	VTermPos pos = vtermPos(ph_pos);
 
 	if(mouseFunc && !(e->modifiers() & Qt::SHIFT)) {
@@ -490,8 +589,8 @@ void QVTermWidget::mouseMoveEvent(QMouseEvent *e) {
 	if(viewport()->contentsRect().contains(e->pos()) && (mouseDragState_ == DRAG_PENDING || mouseDragState_ == DRAGGING)) {
 
 		PhyPos ph_pos;
-		ph_pos.pcol = e->x() / cellHeight_;
-		ph_pos.prow = e->y() / cellWidth_;
+		ph_pos.pcol = e->x() / cellWidth_;
+		ph_pos.prow = e->y() / cellHeight_;
 		VTermPos old_end = mouseDragState_ == DRAGGING ? mouseDragCurrentPos_ : mouseDragStartPos_;
 		VTermPos pos = vtermPos(ph_pos);
 
@@ -539,8 +638,8 @@ void QVTermWidget::mouseMoveEvent(QMouseEvent *e) {
 
 void QVTermWidget::mouseReleaseEvent(QMouseEvent * e) {
 	PhyPos ph_pos;
-	ph_pos.pcol = e->x() / cellHeight_;
-	ph_pos.prow = e->y() / cellWidth_;
+	ph_pos.pcol = e->x() / cellWidth_;
+	ph_pos.prow = e->y() / cellHeight_;
 	VTermPos pos = vtermPos(ph_pos);
 
 	if(mouseFunc && !(e->modifiers() & Qt::SHIFT)) {
@@ -560,8 +659,8 @@ void QVTermWidget::mouseReleaseEvent(QMouseEvent * e) {
 
 void QVTermWidget::mouseDoubleClickEvent(QMouseEvent * e) {
 	PhyPos ph_pos;
-	ph_pos.pcol = e->x() / cellHeight_;
-	ph_pos.prow = e->y() / cellWidth_;
+	ph_pos.pcol = e->x() / cellWidth_;
+	ph_pos.prow = e->y() / cellHeight_;
 	VTermPos pos = vtermPos(ph_pos);
 
 	VTermPos start_pos = pos;
@@ -637,8 +736,12 @@ void QVTermWidget::focusOutEvent(QFocusEvent *) {
 }
 
 void QVTermWidget::resizeEvent(QResizeEvent * e) {
-	numCols_ = e->size().width() / cellHeight_;
-	numRows_ = e->size().height() / cellWidth_;
+	numCols_ = e->size().width() / cellWidth_;
+	numRows_ = e->size().height() / cellHeight_;
+	// some crazy window managers allow arbitrary shrinking of windows.
+	// make sure we don't call vterm_set_size with 0,0
+	if(numCols_ < 1) numCols_ = 1;
+	if(numRows_ < 1) numRows_ = 1;
 	vterm_set_size(vTerm_, numRows_, numCols_);
 	vterm_screen_flush_damage(vTermScreen_);
 	struct winsize size = { numRows_, numCols_, 0, 0 };
@@ -668,8 +771,8 @@ void QVTermWidget::setBoldHighBright(bool v) {
 void QVTermWidget::setFont(const QFont &fnt) {
 	QAbstractScrollArea::setFont(fnt);
 	QFontMetrics qfm(font());
-	cellHeight_ = qfm.maxWidth();
-	cellWidth_ = qfm.height();
+	cellWidth_ = qfm.maxWidth();
+	cellHeight_ = qfm.height();
 	setTermSize(numRows_, numCols_);
 }
 

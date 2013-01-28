@@ -33,8 +33,13 @@ public:
 
 	void copySelectedText();
 	void pasteFromClipboard();
+	void findText(QString txt);
+	void findNext();
+	void clearSearchResults() { searchResults_.clear(); }
+	QSize minimumSize() const { return QSize(10*cellWidth_,cellHeight_); }
 private:
-
+	// todo range not rect
+QVector<VTermRect> searchResults_;
 
 public:
 	void setDefaultColours(QColor fg, QColor bg);
@@ -169,8 +174,8 @@ QString currentTitle_;
 	int numBufferOffscreenLines_;
 	ScrollbackLine **scrollbackBuffer_;
 
-	int cellWidth_;
 	int cellHeight_;
+	int cellWidth_;
 
 	QColor foregroundColour_;
 	QColor backgroundColour_;

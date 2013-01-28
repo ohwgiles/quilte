@@ -5,6 +5,7 @@
 
 class QTabWidget;
 class QVTermWidget;
+class SearchPanel;
 
 class Quilte : public QMainWindow {
 	Q_OBJECT
@@ -16,6 +17,7 @@ private:
 	QMenuBar* menu_;
 
 	QVTermWidget* currentTerm();
+	SearchPanel* searchPanel_;
 
 public slots:
 	void newTab();
@@ -35,6 +37,9 @@ public slots:
 	void findNext();
 	void website();
 	void about();
+	void searchPanelVisibilityChanged(bool);
+	void searchTerm(QString);
+	void searchNext();
 };
 
 #endif // QUILTE_HPP
