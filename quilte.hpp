@@ -21,6 +21,7 @@ private:
 
 public slots:
 	void newTab();
+	void saveBuffer();
 	void closeCurrentTab();
 	void closeTerm(QVTermWidget* term);
 	void showTermAt(int);

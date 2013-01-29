@@ -69,7 +69,7 @@ void QVTermWidget::pushString(QString str) {
 	flushOutput();
 }
 
-void QVTermWidget::fetchCell(VTermPos pos, VTermScreenCell *cell) {
+void QVTermWidget::fetchCell(VTermPos pos, VTermScreenCell *cell) const {
 	if(pos.row < 0) {
 		/* pos.row == -1 => sb_buffer[0], -2 => [1], etc... */
 		ScrollbackLine *sb_line = scrollbackBuffer_[-pos.row-1];
@@ -109,6 +109,27 @@ QString QVTermWidget::getText(VTermPos from, VTermPos to) {
 	if(end_blank)
 		content.append('\n');
 
+	return QString::fromUcs4(content.constData());
+}
+
+QString QVTermWidget::getEntireBuffer() const {
+	QVector<uint> content;
+	VTermPos pos;
+	pos.row = -numBufferOffscreenLines_;
+	pos.col = 0;
+	while(pos.row <= numRows_ && pos.col <= numCols_) {
+		VTermScreenCell cell;
+		fetchCell(pos, &cell);
+		for(int i=0; cell.chars[i]; ++i)
+			content.append(cell.chars[i]);
+
+		pos.col += cell.width;
+		if(pos.col > numCols_) {
+			++pos.row;
+			pos.col = 0;
+			content.append('\n');
+		}
+	}
 	return QString::fromUcs4(content.constData());
 }
 

@@ -30,7 +30,7 @@ public:
 	void pushString(QString str);
 
 	QString getText(VTermPos from, VTermPos to);
-
+	QString getEntireBuffer() const;
 	void copySelectedText();
 	void pasteFromClipboard();
 	void findText(QString txt);
@@ -123,7 +123,7 @@ private:
 	int setMouseFunc(VTermMouseFunc func, void *data);
 	int bell();
 
-	void fetchCell(VTermPos pos, VTermScreenCell *cell);
+	void fetchCell(VTermPos pos, VTermScreenCell *cell) const;
 
 	void startCursorBlinking();
 	void stopCursorBlinking();

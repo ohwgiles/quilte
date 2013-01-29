@@ -7,6 +7,7 @@
 #include <QMessageBox>
 #include <qvtermwidget.hpp>
 #include <QDebug>
+#include <QFileDialog>
 
 Quilte::Quilte() : QMainWindow() {
 	tabs_ = new QTabWidget();
@@ -19,6 +20,10 @@ Quilte::Quilte() : QMainWindow() {
 	addAction(newTab);
 	newTab->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_T));
 	newTab->setIcon(QIcon::fromTheme("window-new"));
+	QAction* saveBuffer = fileMenu->addAction("Save Buffer", this, SLOT(saveBuffer()));
+	addAction(saveBuffer);
+	saveBuffer->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_S));
+	saveBuffer->setIcon(QIcon::fromTheme("document-save"));
 	QAction* closeTab = fileMenu->addAction("Close Tab", this, SLOT(closeCurrentTab()));
 	addAction(closeTab);
 	closeTab->setShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_W));
@@ -120,6 +125,19 @@ void Quilte::newTab() {
 	connect(t, SIGNAL(titleChanged(QVTermWidget*,QString)), this, SLOT(setTermTitle(QVTermWidget*,QString)));
 	tabs_->addTab(t,"quilte");
 	tabs_->setCurrentWidget(t);
+}
+
+void Quilte::saveBuffer() {
+	QString fileName = QFileDialog::getSaveFileName(this, "Save Buffer");
+	if(!fileName.isEmpty()) {
+		QString buffer = currentTerm()->getEntireBuffer();
+		QFile f(fileName);
+		if(!f.open(QIODevice::WriteOnly)) {
+			QMessageBox::warning(this, "Error", "Could not open " + fileName + " for writing");
+			return;
+		}
+		f.write(buffer.toLocal8Bit());
+	}
 }
 
 void Quilte::showTermAt(int i) {
