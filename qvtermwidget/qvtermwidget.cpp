@@ -860,7 +860,7 @@ QVTermWidget::QVTermWidget(bool withAltScreen, QWidget *parent)
 //	if(withAltScreen) setEnableAltScreen(withAltScreen);
 
 	//vterm_screen_reset(vTermScreen_, 1);
-	setCursorShape(VTERM_PROP_CURSORSHAPE_BLOCK);
+	//setCursorShape(VTERM_PROP_CURSORSHAPE_BLOCK);
 
 	setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 	setAttribute( Qt::WA_InputMethodEnabled);
@@ -900,6 +900,7 @@ void QVTermWidget::setDefaultColours(QColor fg_col, QColor bg_col) {
 }
 
 void QVTermWidget::setCursorShape(int shape) {
+	cursorShape_ = shape;
 	VTermState *state = vterm_obtain_state(vTerm_);
 	VTermValue vtv;
 	vtv.number = shape;

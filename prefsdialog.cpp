@@ -80,14 +80,14 @@ PrefsDialog::PrefsDialog(QSettings &settings, QWidget *parent) :
 	grid->addLayout(cbih, 6,1);
 	//== CURSOR SHAPE
 	grid->addWidget(new QLabel("Cursor shape:",this),7,0);
-	QButtonGroup* cursorShape = new QButtonGroup(this);
+	cursorShape_ = new QButtonGroup(this);
 	QRadioButton* csb = new QRadioButton("Block", this);
 	QRadioButton* csu = new QRadioButton("Underline", this);
 	QRadioButton* csl = new QRadioButton("Bar", this);
-	cursorShape->addButton(csb, VTERM_PROP_CURSORSHAPE_BLOCK);
-	cursorShape->addButton(csu, VTERM_PROP_CURSORSHAPE_UNDERLINE);
-	cursorShape->addButton(csl, VTERM_PROP_CURSORSHAPE_BAR_LEFT);
-	cursorShape->button(settings.value("cursor_shape", 1).toInt())->setChecked(true);
+	cursorShape_->addButton(csb, VTERM_PROP_CURSORSHAPE_BLOCK);
+	cursorShape_->addButton(csu, VTERM_PROP_CURSORSHAPE_UNDERLINE);
+	cursorShape_->addButton(csl, VTERM_PROP_CURSORSHAPE_BAR_LEFT);
+	cursorShape_->button(settings.value("cursor_shape", 1).toInt())->setChecked(true);
 	QHBoxLayout* csh = new QHBoxLayout(this);
 	csh->addWidget(csb);
 	csh->addWidget(csu);
@@ -154,6 +154,7 @@ void PrefsDialog::accept() {
 	settings_.setValue("font", fontButton_->font().family());
 	settings_.setValue("font_size", fontButton_->font().pointSize());
 	settings_.setValue("doubleclick_fullword", doubleClickFullWord_->isChecked());
+	settings_.setValue("cursor_shape", cursorShape_->checkedId());
 	settings_.setValue("cursor_blink_interval", cursorBlinkInterval_->value());
 	settings_.setValue("unscroll_on_key", unscrollOnKey_->isChecked());
 	settings_.setValue("unscroll_on_output", unscrollOnOutput_->isChecked());

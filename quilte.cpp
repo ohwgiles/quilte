@@ -108,11 +108,11 @@ void Quilte::configureTerminal(QVTermWidget* term) {
 	term->setBoldHighBright(settings_.value("bold_highbright").toBool());
 	term->setEnableAltScreen(settings_.value("altscreen").toBool());
 	term->setScrollBufferSize(settings_.value("scrollback_size").toInt());
-	term->setCursorShape(settings_.value("cursor_shape").toInt());
 	QFont f;
 	f.setFamily(settings_.value("font").toString());
 	f.setPixelSize(settings_.value("font_size").toInt());
 	term->setFont(f);
+	term->setCursorShape(settings_.value("cursor_shape").toInt());
 }
 
 void Quilte::searchPanelVisibilityChanged(bool v) {

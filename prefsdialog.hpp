@@ -8,6 +8,7 @@ class QCheckBox;
 class QSlider;
 class QSpinBox;
 class QLineEdit;
+class QButtonGroup;
 
 class PrefsDialog : public QDialog {
 	Q_OBJECT
@@ -28,6 +29,7 @@ private:
 	QPushButton* fgColourButton;
 	QPushButton* fontButton_;
 	QCheckBox* doubleClickFullWord_;
+	QButtonGroup* cursorShape_;
 	QSlider* cursorBlinkInterval_;
 	QCheckBox* unscrollOnKey_;
 	QCheckBox* unscrollOnOutput_;
