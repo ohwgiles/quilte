@@ -25,7 +25,7 @@ struct ScrollbackLine{
 class QVTermWidget : public QAbstractScrollArea {
 	Q_OBJECT
 public:
-	QVTermWidget(QWidget* parent = 0);
+	QVTermWidget(bool withAltScreen = true, QWidget* parent = 0);
 	virtual ~QVTermWidget();
 	void pushString(QString str);
 

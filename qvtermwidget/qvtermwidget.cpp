@@ -311,7 +311,6 @@ void QVTermWidget::findText(QString txt) {
 }
 
 void QVTermWidget::findNext() {
-	qDebug() << "findNext";
 	int index = -1;
 	// first find the current selected one by comparing the highlight with
 	// the search results
@@ -779,7 +778,9 @@ QVTermWidget::~QVTermWidget() {
 
 void QVTermWidget::setEnableAltScreen(bool v) {
 	enableAltScreen_ = v;
+	// TODO why is this necessary?
 	vterm_screen_reset(vTermScreen_, 1);
+
 	vterm_screen_enable_altscreen(vTermScreen_, enableAltScreen_?1:0);
 }
 
@@ -806,6 +807,8 @@ void QVTermWidget::setScrollBufferSize(int lines) {
 		delete[] scrollbackBuffer_;
 	}
 	scrollbackBuffer_ = new ScrollbackLine*[scrollBufferNumLines_];
+	numBufferOffscreenLines_ = 0;
+	verticalScrollBar()->setRange(0,0);
 }
 
 void QVTermWidget::setTermSize(int rows, int cols) {
@@ -814,7 +817,7 @@ void QVTermWidget::setTermSize(int rows, int cols) {
 	vterm_set_size(vTerm_, rows, cols);
 }
 
-QVTermWidget::QVTermWidget(QWidget *parent)
+QVTermWidget::QVTermWidget(bool withAltScreen, QWidget *parent)
 	: QAbstractScrollArea(parent)
 {
 	numRows_ = 20;
@@ -843,19 +846,19 @@ QVTermWidget::QVTermWidget(QWidget *parent)
 	vterm_screen_set_damage_merge(vTermScreen_, VTERM_DAMAGE_SCROLL);
 	vterm_screen_reset(vTermScreen_, 1);
 
-	// set up defaults
+	// set up defaults to be overridden by client config
 	setTermSize(numRows_, numCols_);
-	setDoubleClickFullWord(true);
-	setCursorBlinkInterval(500);
-	setUnscrollOnKey(true);
-	setCursorColour(Qt::white);
-	setDefaultColours(Qt::white, Qt::black);
-	setBoldHighBright(true);
-	setFont(QFont("monospace"));
-	setScrollBufferSize(1000);
-	// BUG: Once the alt screen is enabled it cannot be disabled
-	// enabled is the common behaviour, go with it for now
-	setEnableAltScreen(true);
+//	setDoubleClickFullWord(true);
+//	setCursorBlinkInterval(500);
+//	setUnscrollOnKey(true);
+//	setCursorColour(Qt::white);
+//	//setDefaultColours(Qt::white, Qt::black);
+//	setBoldHighBright(true);
+//	setFont(QFont("monospace"));
+//	setScrollBufferSize(1000);
+//	if(withAltScreen) setEnableAltScreen(withAltScreen);
+
+	//vterm_screen_reset(vTermScreen_, 1);
 	setCursorShape(VTERM_PROP_CURSORSHAPE_BLOCK);
 
 	setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);

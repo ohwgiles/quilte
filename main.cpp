@@ -1,43 +1,49 @@
-
 #include "quilte.hpp"
 #include <QApplication>
 #include <QSettings>
+#include <vterm.h>
 
 int main(int argc, char **argv) {
-
 	QApplication a(argc,argv);
 
-	QSettings gSettings("/home/og/.config/qvtermwidget.conf", QSettings::IniFormat);
-	gSettings.setValue("test","this");
+	QSettings prefs("/home/og/.config/qvtermwidget.conf", QSettings::IniFormat);
 
-//	int lines = gSettings.value("lines", 25).toInt();
-//	int cols = gSettings.value("cols",50).toInt();
-	Quilte m;
-//	QVTermWidget v;
+	// configure all default settings
+	if(!prefs.contains("foreground"))
+		prefs.setValue("foreground","gray90");
+	if(!prefs.contains("background"))
+		prefs.setValue("background","black");
+	if(!prefs.contains("font"))
+		prefs.setValue("font","monospace");
+	if(!prefs.contains("font_size"))
+		prefs.setValue("font_size", 12);
+	if(!prefs.contains("doubleclick_fullword"))
+		prefs.setValue("doubleclick_fullword", false);
+	if(!prefs.contains("cursor_blink_interval"))
+		prefs.setValue("cursor_blink_interval", 500);
+	if(!prefs.contains("unscroll_on_key"))
+		prefs.setValue("unscroll_on_key", true);
+	if(!prefs.contains("unscroll_on_output"))
+		prefs.setValue("unscroll_on_output", true);
+	if(!prefs.contains("cursor_colour"))
+		prefs.setValue("cursor_colour","white");
+	if(!prefs.contains("bold_highbright"))
+		prefs.setValue("bold_highbright", true);
+	if(!prefs.contains("altscreen"))
+		prefs.setValue("altscreen",true);
+	if(!prefs.contains("scrollback_size"))
+		prefs.setValue("scrollback_size", 1000);
+	if(!prefs.contains("cursor_shape"))
+		prefs.setValue("cursor_shape", VTERM_PROP_CURSORSHAPE_BLOCK);
+	if(!prefs.contains("term_env"))
+		prefs.setValue("term_env", getenv("TERM"));
+	if(!prefs.contains("shell"))
+		prefs.setValue("shell", getenv("SHELL"));
 
-//	QColor fg_col(gSettings.value("foreground","gray90").toString());
-//	QColor bg_col(gSettings.value("background","black").toString());
-//	QFont font(gSettings.value("font","Inconsolata").toString());
-//	font.setPointSize(gSettings.value("font_size",12.0).toDouble());
-
-//	v.setFont(font);
-//	v.setDoubleClickFullWord(gSettings.value("doubleclick_fullword", false).toBool());
-//	v.setCursorBlinkInterval(gSettings.value("cursor_blink_interval",500).toInt());
-//	v.setUnscrollOnKey(gSettings.value("unscroll_on_key",true).toBool());
-//	v.setCursorColour(QColor(gSettings.value("cursor_colour","pink").toString()));
-//	v.setBoldHighBright(gSettings.value("bold_highbright",true).toBool());
-//	v.setEnableAltScreen(gSettings.value("altscreen",true).toBool());
-//	v.setScrollBufferSize(gSettings.value("scrollback_size",1000).toInt());
-//	v.setCursorShape(gSettings.value("cursor_shape",VTERM_PROP_CURSORSHAPE_BLOCK).toInt());
-//	v.setUnscrollOnOutput(gSettings.value("unscroll_on_output",false).toBool());
-//	v.setTermSize(lines,cols);
-//	v.setDefaultColours(fg_col, bg_col);
-//	v.start(gSettings.value("TERM","xterm").toString(), "/bin/bash");
+	Quilte m(prefs);
 
 	m.show();
 	m.newTab();
 	a.exec();
-
-	gSettings.sync();
 	return 0;
 }

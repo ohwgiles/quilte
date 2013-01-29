@@ -6,19 +6,22 @@
 class QTabWidget;
 class QVTermWidget;
 class SearchPanel;
+class QSettings;
 
 class Quilte : public QMainWindow {
 	Q_OBJECT
 public:
-	Quilte();
+	explicit Quilte(QSettings& settings);
 	virtual ~Quilte();
 private:
+	QSettings& settings_;
 	QTabWidget* tabs_;
 	QMenuBar* menu_;
 
 	QVTermWidget* currentTerm();
 	SearchPanel* searchPanel_;
 
+	void configureTerminal(QVTermWidget *term);
 public slots:
 	void newTab();
 	void saveBuffer();

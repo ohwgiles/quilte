@@ -1,5 +1,6 @@
 #include "quilte.hpp"
 #include "searchpanel.hpp"
+#include "prefsdialog.hpp"
 #include <QTabWidget>
 #include <QMenuBar>
 #include <QDesktopServices>
@@ -8,8 +9,10 @@
 #include <qvtermwidget.hpp>
 #include <QDebug>
 #include <QFileDialog>
+#include <QSettings>
 
-Quilte::Quilte() : QMainWindow() {
+Quilte::Quilte(QSettings& settings) : QMainWindow(),
+	settings_(settings){
 	tabs_ = new QTabWidget();
 	menu_ = new QMenuBar();
 	QIcon::setThemeName("gnome");
@@ -94,6 +97,24 @@ Quilte::Quilte() : QMainWindow() {
 	addToolBar(Qt::BottomToolBarArea, searchPanel_);
 	connect(tabs_, SIGNAL(currentChanged(int)), this, SLOT(showTermAt(int)));
 }
+
+void Quilte::configureTerminal(QVTermWidget* term) {
+	term->setDefaultColours(QColor(settings_.value("foreground").toString()), QColor(settings_.value("background").toString()));
+	term->setDoubleClickFullWord(settings_.value("doubleclick_fullword").toBool());
+	term->setCursorBlinkInterval(settings_.value("cursor_blink_interval").toInt());
+	term->setUnscrollOnKey(settings_.value("unscroll_on_key").toBool());
+	term->setUnscrollOnOutput(settings_.value("unscroll_on_output").toBool());
+	term->setCursorColour(QColor(settings_.value("cursor_colour").toString()));
+	term->setBoldHighBright(settings_.value("bold_highbright").toBool());
+	term->setEnableAltScreen(settings_.value("altscreen").toBool());
+	term->setScrollBufferSize(settings_.value("scrollback_size").toInt());
+	term->setCursorShape(settings_.value("cursor_shape").toInt());
+	QFont f;
+	f.setFamily(settings_.value("font").toString());
+	f.setPixelSize(settings_.value("font_size").toInt());
+	term->setFont(f);
+}
+
 void Quilte::searchPanelVisibilityChanged(bool v) {
 	if(!v) currentTerm()->clearSearchResults();
 }
@@ -119,8 +140,9 @@ Quilte::~Quilte() {
 }
 
 void Quilte::newTab() {
-	QVTermWidget* t = new QVTermWidget();
-	t->start("xterm-256color","/bin/bash");
+	QVTermWidget* t = new QVTermWidget(settings_.value("altscreen").toBool());
+	configureTerminal(t);
+	t->start(settings_.value("term_env").toString(),settings_.value("shell").toString(), settings_.value("launch_cmd").toString());
 	connect(t, SIGNAL(finished(QVTermWidget*)), this, SLOT(closeTerm(QVTermWidget*)));
 	connect(t, SIGNAL(titleChanged(QVTermWidget*,QString)), this, SLOT(setTermTitle(QVTermWidget*,QString)));
 	tabs_->addTab(t,"quilte");
@@ -177,7 +199,13 @@ void Quilte::editClear() {
 }
 
 void Quilte::showPrefs() {
-
+	PrefsDialog* prefsDialog = new PrefsDialog(settings_, this);
+	if(prefsDialog->exec()) {
+		for(int i = 0; i < tabs_->count(); ++i) {
+			QVTermWidget* term = qobject_cast<QVTermWidget*>(tabs_->widget(i));
+			configureTerminal(term);
+		}
+	}
 }
 
 void Quilte::toggleMenubar() {
