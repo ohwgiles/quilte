@@ -200,7 +200,7 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 			}
 
 			int cursor_here = pos.row == cursorPosition_.row && pos.col == cursorPosition_.col;
-			int cursor_visible = cursorBlinkState_ ;//|| !hasFocus();
+			int cursor_visible = cursorBlinkState_ || !hasFocus();
 
 			QFont fnt(font());
 			if(cell.attrs.bold)
@@ -225,12 +225,13 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 
 			p.setFont(fnt);
 
-			if(cell.chars[0] != 0) { // there is something here
+			if(cell.chars[0] == 0) { // empty cell
+				p.fillRect(ph_pos.pcol*cellWidth_, ph_pos.prow*cellHeight_,cellWidth_*cell.width,cellHeight_, p.background());
+
+			} else if(cell.chars[0] != 0) { // there is something here
 				QString chr = QString::fromUcs4(cell.chars);
 				p.fillRect(ph_pos.pcol*cellWidth_, ph_pos.prow*cellHeight_,cellWidth_*cell.width,cellHeight_,p.background());
 				p.drawText(ph_pos.pcol*cellWidth_, ph_pos.prow*cellHeight_,cellWidth_*cell.width,cellHeight_,0,chr);
-			} else if(cursor_here && cursorShape_ == VTERM_PROP_CURSORSHAPE_BLOCK) {
-				p.fillRect(ph_pos.pcol*cellWidth_, ph_pos.prow*cellHeight_,cellWidth_*cell.width,cellHeight_, cursor_visible ? fg : bg);
 			}
 
 			if(cursor_visible && cursor_here && cursorShape_ != VTERM_PROP_CURSORSHAPE_BLOCK) {
