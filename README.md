@@ -29,6 +29,7 @@ planned improvements
 - why doesn't ctrl-L clear the terminal
 - better RTL support
 - background transparency in composited environments
+- profiles
 
 license
 -------
