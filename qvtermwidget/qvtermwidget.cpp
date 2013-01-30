@@ -69,7 +69,9 @@ void QVTermWidget::pushString(QString str) {
 	flushOutput();
 }
 
-void QVTermWidget::fetchCell(VTermPos pos, VTermScreenCell *cell) const {
+VTermScreenCell QVTermWidget::fetchCell(const TermPosition pos) const {
+	VTermScreenCell c;
+	VTermScreenCell* cell = &c;
 	if(pos.row < 0) {
 		/* pos.row == -1 => sb_buffer[0], -2 => [1], etc... */
 		ScrollbackLine *sb_line = scrollbackBuffer_[-pos.row-1];
@@ -81,19 +83,21 @@ void QVTermWidget::fetchCell(VTermPos pos, VTermScreenCell *cell) const {
 			cell->bg = sb_line->cells[sb_line->cols - 1].bg;
 		}
 	} else {
-		vterm_screen_get_cell(vTermScreen_, pos, cell);
+VTermPos vt = { .row = pos.row, .col = pos.col };
+		vterm_screen_get_cell(vTermScreen_, vt, cell);
 	}
+		return c;
 }
 
 QString QVTermWidget::getText(VTermPos from, VTermPos to) {
 	bool end_blank = false;
 	QVector<uint> content;
-	VTermPos pos;
-	pos.row = from.row;
-	pos.col = from.col;
+	TermPosition pos(from.row, from.col, numRows_, numCols_);
+//	pos.row = from.row;
+//	pos.col = from.col;
 	while(pos.row <= to.row && pos.col <= to.col) {
-		VTermScreenCell cell;
-		fetchCell(pos, &cell);
+		VTermScreenCell cell = fetchCell(pos);
+		//fetchCell(pos, &cell);
 		for(int i=0; cell.chars[i]; ++i)
 			content.append(cell.chars[i]);
 
@@ -114,12 +118,9 @@ QString QVTermWidget::getText(VTermPos from, VTermPos to) {
 
 QString QVTermWidget::getEntireBuffer() const {
 	QVector<uint> content;
-	VTermPos pos;
-	pos.row = -numBufferOffscreenLines_;
-	pos.col = 0;
+	TermPosition pos( -numBufferOffscreenLines_, 0, numRows_, numCols_);
 	while(pos.row <= numRows_ && pos.col <= numCols_) {
-		VTermScreenCell cell;
-		fetchCell(pos, &cell);
+		VTermScreenCell cell = fetchCell(pos);
 		for(int i=0; cell.chars[i]; ++i)
 			content.append(cell.chars[i]);
 
@@ -171,7 +172,7 @@ QRect QVTermWidget::displayRect(PhyRect rect) {
 
 void QVTermWidget::paintEvent(QPaintEvent * e) {
 	QPainter p(viewport());
-	PhyPos ph_pos;
+	//PhyPos ph_pos;
 
 	// clear the background first
 	p.fillRect(e->rect(), backgroundColour_);
@@ -181,12 +182,42 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 	int xmax = e->rect().width() / cellWidth_ + xmin;
 	int ymax = e->rect().height() / cellHeight_ + ymin;
 
-	for(ph_pos.prow = ymin; ph_pos.prow < ymax; ph_pos.prow++) {
-		for(ph_pos.pcol = xmin; ph_pos.pcol < xmax; ) {
-			VTermPos pos = vtermPos(ph_pos);
+	enum { RTL = -1, LTR = 1 } textDirection = LTR;
+	//QChar::Direction currentDirection = QChar::DirL;
+	//VTermPos beginningOfEmbeddedRtl;
+//	int colOffset = 0;
+//	int rowOffset = 0;
+	TermPosition pos(ymin-scrollOffset_,xmin,numRows_,numCols_);
+	TermPosition atThisPoint, returnTo;
+	for(int j = ymin; j < ymax; j++) {
+		for(int i = xmin; i < xmax; ) {
+			TermPosition ph_pos(j,i,numRows_,numCols_);
+			//PhyPos ph_pos = { .prow = j + rowOffset, .pcol = i + colOffset };
+			//VTermPos pos = { .row = j - scrollOffset_, .col = i };
+			//VTermPos pos = vtermPos(ph_pos);
 
-			VTermScreenCell cell;
-			fetchCell(pos, &cell);
+			VTermScreenCell cell = fetchCell(pos);
+
+			if(textDirection == LTR && QChar(cell.chars[0]).direction() == QChar::DirR) {
+				textDirection = RTL;
+				atThisPoint = pos;
+				//TermPosition scan = pos;
+				// find the next strong LTR, then backtrack to the first weak char
+				while(cell.chars[0] && QChar(cell.chars[0]).direction() != QChar::DirL) {
+					++pos;
+					cell = fetchCell(pos);
+				}
+				--pos;
+				cell = fetchCell(pos);
+				while(QChar(cell.chars[0]).direction() != QChar::DirR) {
+					--pos;
+					cell = fetchCell(pos);
+				}
+				returnTo = pos;
+				cell = fetchCell(pos);
+			}
+
+
 
 			/* Invert the RV attribute if this cell is selected */
 			if(hasHighlight_) {
@@ -226,16 +257,16 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 			p.setFont(fnt);
 
 			if(cell.chars[0] == 0) { // empty cell
-				p.fillRect(ph_pos.pcol*cellWidth_, ph_pos.prow*cellHeight_,cellWidth_*cell.width,cellHeight_, p.background());
+				p.fillRect(ph_pos.col*cellWidth_, ph_pos.row*cellHeight_,cellWidth_*cell.width,cellHeight_, p.background());
 
 			} else if(cell.chars[0] != 0) { // there is something here
 				QString chr = QString::fromUcs4(cell.chars);
-				p.fillRect(ph_pos.pcol*cellWidth_, ph_pos.prow*cellHeight_,cellWidth_*cell.width,cellHeight_,p.background());
-				p.drawText(ph_pos.pcol*cellWidth_, ph_pos.prow*cellHeight_,cellWidth_*cell.width,cellHeight_,0,chr);
+				p.fillRect(ph_pos.col*cellWidth_, ph_pos.row*cellHeight_,cellWidth_*cell.width,cellHeight_,p.background());
+				p.drawText(ph_pos.col*cellWidth_, ph_pos.row*cellHeight_,cellWidth_*cell.width,cellHeight_,0,chr);
 			}
 
 			if(cursor_visible && cursor_here && cursorShape_ != VTERM_PROP_CURSORSHAPE_BLOCK) {
-				QRect cursor_area = displayRect(ph_pos);
+				QRect cursor_area = ph_pos.rect(cellWidth_, cellHeight_);//displayRect(ph_pos);
 				switch(cursorShape_) {
 				case VTERM_PROP_CURSORSHAPE_UNDERLINE:
 					p.fillRect(cursor_area.x(), cursor_area.y()+cursor_area.height()*0.85, cursor_area.width(), cursor_area.height()*0.15, cursorColour_);
@@ -246,10 +277,17 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 				}
 			}
 
-			ph_pos.pcol += cell.width;
+			//ph_pos.pcol += cell.width * textDirection;
+			i += cell.width;// * textDirection;
+
+			if(pos == atThisPoint) {
+				textDirection = LTR;
+				pos = returnTo;
+			}
+			if(textDirection == LTR) ++pos; else --pos;
+
 		}
 	}
-
 	QPen pen;
 	pen.setStyle(Qt::DotLine);
 	pen.setColor(foregroundColour_);
@@ -262,6 +300,7 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 		}
 	}
 
+
 }
 
 void QVTermWidget::findText(QString txt) {
@@ -272,9 +311,10 @@ void QVTermWidget::findText(QString txt) {
 	VTermRect matchRange;
 	for(int j = numRows_-1; j>=-numBufferOffscreenLines_; --j) {
 		for(int i = numCols_-1; i>=0; --i) {
-			VTermScreenCell cell;
-			VTermPos pos = { .row = j, .col = i };
-			fetchCell(pos, &cell);
+			//VTermScreenCell cell;
+			TermPosition pos(j,i,numRows_,numCols_);
+			//VTermPos pos = { .row = j, .col = i };
+			VTermScreenCell cell = fetchCell(pos);
 			// match backwards
 			if(cell.chars[0] == *searchCursor) {
 				if(searchCursor == searchTermEnd) { //this is a new match
@@ -679,39 +719,41 @@ void QVTermWidget::mouseReleaseEvent(QMouseEvent * e) {
 }
 
 void QVTermWidget::mouseDoubleClickEvent(QMouseEvent * e) {
-	PhyPos ph_pos;
-	ph_pos.pcol = e->x() / cellWidth_;
-	ph_pos.prow = e->y() / cellHeight_;
-	VTermPos pos = vtermPos(ph_pos);
-
-	VTermPos start_pos = pos;
+//	PhyPos ph_pos;
+//	ph_pos.pcol = e->x() / cellWidth_;
+//	ph_pos.prow = e->y() / cellHeight_;
+//	VTermPos pos = vtermPos(ph_pos);
+	TermPosition pos(e->y() / cellHeight_ - scrollOffset_, e->x() / cellWidth_, numRows_, numCols_);
+	TermPosition start_pos = pos;
 	while(start_pos.col > 0 || start_pos.row > 0) {
-		VTermPos cellpos = start_pos;
-		VTermScreenCell cell;
+		TermPosition cellpos = start_pos;
+		//VTermPos cellpos = start_pos;
+		//VTermScreenCell cell;
 
 		cellpos.col--;
 		if(cellpos.col < 0) {
 			cellpos.row--;
 			cellpos.col = numCols_ - 1;
 		}
-		fetchCell(cellpos, &cell);
+		VTermScreenCell cell = fetchCell(cellpos);
 		if(!isWordChar(cell.chars[0]))
 			break;
 
 		start_pos = cellpos;
 	}
 
-	VTermPos stop_pos = pos;
+	TermPosition stop_pos = pos;
 	while(stop_pos.col < numCols_ - 1 || stop_pos.row < numRows_ - 1) {
-		VTermPos cellpos = stop_pos;
-		VTermScreenCell cell;
+		TermPosition cellpos = stop_pos;
+//		VTermPos cellpos = stop_pos;
+//		VTermScreenCell cell;
 
 		cellpos.col++;
 		if(cellpos.col >= numCols_) {
 			cellpos.row++;
 			cellpos.col = 0;
 		}
-		fetchCell(cellpos, &cell);
+		VTermScreenCell cell = fetchCell(cellpos);
 		if(!isWordChar(cell.chars[0]))
 			break;
 
@@ -719,8 +761,10 @@ void QVTermWidget::mouseDoubleClickEvent(QMouseEvent * e) {
 	}
 
 	hasHighlight_ = 1;
-	highlightStartPos_ = start_pos;
-	highlightEndPos_  = stop_pos;
+	highlightStartPos_.row = start_pos.row;
+	highlightStartPos_.col = start_pos.col;
+	highlightEndPos_.row  = stop_pos.row;
+	highlightEndPos_.col  = stop_pos.col;
 
 	viewport()->update();
 	clipboard->setText(getText(highlightStartPos_, highlightEndPos_), QClipboard::Selection);

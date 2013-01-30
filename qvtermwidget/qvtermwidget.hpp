@@ -22,6 +22,52 @@ struct ScrollbackLine{
 } ;
 
 
+
+class TermPosition {
+public:
+	TermPosition() : row(-1), col(-1) {}
+	TermPosition(int row, int col, int maxRows, int maxCols) : row(row), col(col), maxRows(maxRows), maxCols(maxCols) {}
+	int row;
+	int col;
+	TermPosition operator+(int v) const {
+		TermPosition result(row,col,maxRows,maxCols);
+		result.row += (col + v) / maxCols;
+		result.col += (col + v) % maxCols;
+		return result;
+	}
+	TermPosition& operator++() {
+		col++;
+		if(col == maxCols) {
+			row++;
+			col = 0;
+		}
+		return *this;
+	}
+	TermPosition& operator--() {
+		if(col == 0) {
+			col = maxCols;
+			row--;
+		}
+		col--;
+		return *this;
+	}
+	bool operator==(const TermPosition& other) {
+		return col == other.col && row == other.row;
+	}
+
+	QRect rect(int cellWidth, int cellHeight) const {
+		return QRect(col * cellWidth,
+					 row * cellHeight,
+					 cellWidth,
+					 cellHeight);
+	}
+private:
+	int maxRows;
+	int maxCols;
+
+};
+
+
 class QVTermWidget : public QAbstractScrollArea {
 	Q_OBJECT
 public:
@@ -123,7 +169,8 @@ private:
 	int setMouseFunc(VTermMouseFunc func, void *data);
 	int bell();
 
-	void fetchCell(VTermPos pos, VTermScreenCell *cell) const;
+	//void fetchCell(VTermPos pos, VTermScreenCell *cell) const;
+	VTermScreenCell fetchCell(const TermPosition pos) const;
 
 	void startCursorBlinking();
 	void stopCursorBlinking();
