@@ -6,11 +6,10 @@
 int main(int argc, char **argv) {
 	QApplication a(argc,argv);
 
-	QSettings prefs("/home/og/.config/qvtermwidget.conf", QSettings::IniFormat);
-
+	QSettings prefs(QString(getenv("HOME")) + "/.config/quilte.conf", QSettings::IniFormat);
 	// configure all default settings
 	if(!prefs.contains("foreground"))
-		prefs.setValue("foreground","gray90");
+		prefs.setValue("foreground","white");
 	if(!prefs.contains("background"))
 		prefs.setValue("background","black");
 	if(!prefs.contains("font"))
@@ -36,7 +35,7 @@ int main(int argc, char **argv) {
 	if(!prefs.contains("cursor_shape"))
 		prefs.setValue("cursor_shape", VTERM_PROP_CURSORSHAPE_BLOCK);
 	if(!prefs.contains("term_env"))
-		prefs.setValue("term_env", getenv("TERM"));
+		prefs.setValue("term_env", "xterm-256color");
 	if(!prefs.contains("shell"))
 		prefs.setValue("shell", getenv("SHELL"));
 
