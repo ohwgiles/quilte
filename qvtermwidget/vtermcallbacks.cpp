@@ -49,13 +49,13 @@ int VTermCallbacks::term_bell(void *user_data) {
 void registerVtermCallbacks(VTermScreen* vts, QVTermWidget* owner) {
 
 	static VTermScreenCallbacks cb = {
-	  .damage       = VTermCallbacks::term_damage,
-	  .prescroll    = VTermCallbacks::term_prescroll,
-	  .moverect     = VTermCallbacks::term_moverect,
-	  .movecursor   = VTermCallbacks::term_movecursor,
-	  .settermprop  = VTermCallbacks::term_settermprop,
-	  .setmousefunc = VTermCallbacks::term_setmousefunc,
-	  .bell         = VTermCallbacks::term_bell,
+	  VTermCallbacks::term_damage,       //damage       = 
+	  VTermCallbacks::term_prescroll,    //prescroll    = 
+	  VTermCallbacks::term_moverect,     //moverect     = 
+	  VTermCallbacks::term_movecursor,   //movecursor   = 
+	  VTermCallbacks::term_settermprop,  //settermprop  = 
+	  VTermCallbacks::term_setmousefunc, //setmousefunc = 
+	  VTermCallbacks::term_bell          //bell         = 
 	};
 
 
