@@ -25,6 +25,7 @@ private slots:
 	void getFont();
 
 private:
+	// per-terminal settings
 	QPushButton* bgColourButton;
 	QPushButton* fgColourButton;
 	QPushButton* fontButton_;
@@ -39,6 +40,10 @@ private:
 	QLineEdit* termEnv_;
 	QLineEdit* shell_;
 	QLineEdit* launchCmd_;
+	// global settings
+	QCheckBox* showMenubar_;
+	QCheckBox* alwaysShowTabbar_;
+	// settings object
 	QSettings& settings_;
 };
 

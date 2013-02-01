@@ -8,6 +8,11 @@ class QVTermWidget;
 class SearchPanel;
 class QSettings;
 
+// expose tabBar() publicly
+class QTabWidget_ : public QTabWidget { public:
+	QTabBar* tabBar() const { return QTabWidget::tabBar(); }
+};
+
 class Quilte : public QMainWindow {
 	Q_OBJECT
 public:
@@ -15,13 +20,14 @@ public:
 	virtual ~Quilte();
 private:
 	QSettings& settings_;
-	QTabWidget* tabs_;
+	QTabWidget_* tabs_;
 	QMenuBar* menu_;
 
 	QVTermWidget* currentTerm();
 	SearchPanel* searchPanel_;
-
+QMenu* contextMenu_;
 	void configureTerminal(QVTermWidget *term);
+	void contextMenuEvent(QContextMenuEvent *event);
 public slots:
 	void newTab();
 	void saveBuffer();

@@ -39,6 +39,11 @@ int main(int argc, char **argv) {
 	if(!prefs.contains("shell"))
 		prefs.setValue("shell", getenv("SHELL"));
 
+	if(!prefs.contains("show_menubar"))
+		prefs.setValue("show_menubar", true);
+	if(!prefs.contains("always_show_tabbar"))
+		prefs.setValue("always_show_tabbar", false);
+
 	Quilte m(prefs);
 
 	m.show();

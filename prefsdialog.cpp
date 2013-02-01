@@ -122,6 +122,18 @@ PrefsDialog::PrefsDialog(QSettings &settings, QWidget *parent) :
 	launchCmd_ = new QLineEdit(settings.value("launch_cmd").toString(), this);
 	grid->addWidget(launchCmd_, 13, 1);
 
+	//== SHOW MENUBAR
+	grid->addWidget(new QLabel("Show Menu Bar:",this),14,0);
+	showMenubar_ = new QCheckBox(this);
+	showMenubar_->setChecked(settings.value("show_menubar").toBool());
+	grid->addWidget(showMenubar_, 14, 1);
+	//== ALWAYS SHOW TAB BAR
+	grid->addWidget(new QLabel("Always show Tab Bar:",this),15,0);
+	alwaysShowTabbar_ = new QCheckBox(this);
+	alwaysShowTabbar_->setChecked(settings.value("always_show_tabbar").toBool());
+	grid->addWidget(alwaysShowTabbar_, 15, 1);
+
+
 	QDialogButtonBox* qdbb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, this);
 	connect(qdbb, SIGNAL(accepted()), this, SLOT(accept()));
 	connect(qdbb, SIGNAL(rejected()), this, SLOT(reject()));
@@ -164,5 +176,8 @@ void PrefsDialog::accept() {
 	settings_.setValue("term_env", termEnv_->text());
 	settings_.setValue("shell", shell_->text());
 	settings_.setValue("launch_cmd", launchCmd_->text());
+
+	settings_.setValue("show_menubar", showMenubar_->isChecked());
+	settings_.setValue("always_show_tabbar", alwaysShowTabbar_->isChecked());
 	done(true);
 }

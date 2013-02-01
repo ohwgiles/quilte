@@ -10,10 +10,13 @@
 #include <QDebug>
 #include <QFileDialog>
 #include <QSettings>
+#include <QTabBar>
+#include <QContextMenuEvent>
 
 Quilte::Quilte(QSettings& settings) : QMainWindow(),
 	settings_(settings){
-	tabs_ = new QTabWidget();
+	tabs_ = new QTabWidget_();
+	tabs_->setStyleSheet("QTabWidget::pane{border:0;}");
 	menu_ = new QMenuBar();
 	QIcon::setThemeName("gnome");
 
@@ -87,7 +90,15 @@ Quilte::Quilte(QSettings& settings) : QMainWindow(),
 	about->setIcon(QIcon::fromTheme("help-about"));
 
 	setMenuBar(menu_);
+	contextMenu_ = new QMenu(this);
+	contextMenu_->addMenu(fileMenu);
+	contextMenu_->addMenu(editMenu);
+	contextMenu_->addMenu(viewMenu);
+	contextMenu_->addMenu(searchMenu);
+	contextMenu_->addMenu(helpMenu);
+
 	setCentralWidget(tabs_);
+	menu_->setVisible(settings.value("show_menubar").toBool());
 
 	searchPanel_ = new SearchPanel(this);
 	searchPanel_->hide();
@@ -147,6 +158,7 @@ void Quilte::newTab() {
 	connect(t, SIGNAL(titleChanged(QVTermWidget*,QString)), this, SLOT(setTermTitle(QVTermWidget*,QString)));
 	tabs_->addTab(t,"quilte");
 	tabs_->setCurrentWidget(t);
+	tabs_->tabBar()->setVisible(settings_.value("always_show_tabbar").toBool() || tabs_->count() != 1);
 }
 
 void Quilte::saveBuffer() {
@@ -165,7 +177,7 @@ void Quilte::saveBuffer() {
 void Quilte::showTermAt(int i) {
 	searchPanel_->hide();
 	if(i >= 0) {
-		tabs_->setTabText(i, currentTerm()->title());
+		setTermTitle(currentTerm(), currentTerm()->title());
 		tabs_->widget(i)->setFocus();
 	}
 }
@@ -184,6 +196,7 @@ void Quilte::closeTerm(QVTermWidget* term) {
 	delete term;
 	if(tabs_->count() == 0)
 		close();
+	tabs_->tabBar()->setVisible(settings_.value("always_show_tabbar").toBool() || tabs_->count() != 1);
 }
 
 void Quilte::editCopy(){
@@ -206,13 +219,16 @@ void Quilte::showPrefs() {
 			configureTerminal(term);
 		}
 	}
+	menu_->setVisible(settings_.value("show_menubar").toBool());
+	tabs_->tabBar()->setVisible(settings_.value("always_show_tabbar").toBool() || tabs_->count() != 1);
+}
+
+void Quilte::contextMenuEvent(QContextMenuEvent *event) {
+	contextMenu_->exec(mapToGlobal(event->pos()));
 }
 
 void Quilte::toggleMenubar() {
-	if(menu_->isVisible())
-		menu_->hide();
-	else
-		menu_->show();
+	menu_->setVisible(!menu_->isVisible());
 }
 
 void Quilte::toggleFullScreen() {

@@ -915,6 +915,7 @@ QVTermWidget::QVTermWidget(bool withAltScreen, QWidget *parent)
 	//setCursorShape(VTERM_PROP_CURSORSHAPE_BLOCK);
 
 	setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+	setFrameStyle(0);
 	setAttribute( Qt::WA_InputMethodEnabled);
 
 	setCursor(Qt::IBeamCursor);
