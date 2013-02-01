@@ -1,7 +1,9 @@
 quilte
 ------
-- lightweight Qt terminal emulator
-- (but probably a bit heavier than pangoterm)
+![Screenshot](https://raw.github.com/ohwgiles/quilte/master/screen.png)
+
+- Qt terminal emulator
+- no dependencies on Glob or Krud
 - search buffer
 - unicode
 - save buffer
