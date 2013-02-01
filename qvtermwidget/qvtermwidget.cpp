@@ -31,6 +31,13 @@
  * PhyPos and PhyRect instances refer to physical onscreen positions
  */
 
+static VTermPos vtermPos(const TermPosition& p) {
+	VTermPos vp;
+	vp.row = p.row;
+	vp.col = p.col;
+	return vp;
+}
+
 VTermPos QVTermWidget::vtermPos(PhyPos physical) {
 	VTermPos pos;
 	pos.row = physical.prow - scrollOffset_;
@@ -83,7 +90,7 @@ VTermScreenCell QVTermWidget::fetchCell(const TermPosition pos) const {
 			cell->bg = sb_line->cells[sb_line->cols - 1].bg;
 		}
 	} else {
-VTermPos vt = { .row = pos.row, .col = pos.col };
+VTermPos vt = ::vtermPos(pos);
 		vterm_screen_get_cell(vTermScreen_, vt, cell);
 	}
 		return c;
@@ -441,7 +448,8 @@ int QVTermWidget::preScroll(VTermRect rect) {
 
 		scrollbackBuffer_[0] = linebuffer;
 
-		for(VTermPos pos = { .row = row, .col = 0 }; pos.col < numCols_; pos.col++) {
+		VTermPos pos;
+		for(pos.row = row, pos.col = 0; pos.col < numCols_; pos.col++) {
 			vterm_screen_get_cell(vTermScreen_, pos, linebuffer->cells + pos.col);
 		}
 
