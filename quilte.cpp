@@ -6,7 +6,7 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QMessageBox>
-#include <qvtermwidget.hpp>
+#include <QVTermWidget>
 #include <QDebug>
 #include <QFileDialog>
 #include <QSettings>
