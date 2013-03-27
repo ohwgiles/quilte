@@ -315,7 +315,7 @@ void QVTermWidget::findText(QString txt) {
 	const uint32_t* searchTermEnd = &ucs.constData()[ucs.count()-1];
 	const uint32_t* searchCursor = searchTermEnd;
 	searchResults_.clear();
-	VTermRect matchRange;
+    VTermRect matchRange = {0,0,0,0};
 	for(int j = numRows_-1; j>=-numBufferOffscreenLines_; --j) {
 		for(int i = numCols_-1; i>=0; --i) {
 			//VTermScreenCell cell;
