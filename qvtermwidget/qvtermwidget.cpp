@@ -5,6 +5,10 @@
 #include "vtermcallbacks.hpp"
 #include "keyconversion.hpp"
 
+#include <QTextLayout>
+#include <QRawFont>
+#include <QGlyphRun>
+#include <QStaticText>
 #include <QDebug>
 #include <QScrollBar>
 #include <QSettings>
@@ -179,32 +183,73 @@ QRect QVTermWidget::displayRect(PhyRect rect) {
 
 void QVTermWidget::paintEvent(QPaintEvent * e) {
 	QPainter p(viewport());
-	//PhyPos ph_pos;
-
+    p.setCompositionMode(QPainter::CompositionMode_Source);
+    //PhyPos ph_pos;
+	QVector<quint32> totalText;
+    p.setRenderHint(QPainter::Antialiasing, false);
+    QString currentFragment;
+    currentFragment.reserve(numCols_);
+//printf("Paint event\n");
 	// clear the background first
-	p.fillRect(e->rect(), backgroundColour_);
+    p.fillRect(e->rect(), backgroundColour_);
 
 	int xmin = e->rect().x() / cellWidth_;
 	int ymin = e->rect().y() / cellHeight_;
 	int xmax = e->rect().width() / cellWidth_ + xmin;
 	int ymax = e->rect().height() / cellHeight_ + ymin;
 
+	//printf("xmin:%d xmax:%d ymin:%d ymax:%d\n",xmin,xmax,ymin,ymax);
 	enum { RTL = -1, LTR = 1 } textDirection = LTR;
 	//QChar::Direction currentDirection = QChar::DirL;
 	//VTermPos beginningOfEmbeddedRtl;
 //	int colOffset = 0;
 //	int rowOffset = 0;
+    bool paint_cursor = false;
 	TermPosition pos(ymin-scrollOffset_,xmin,numRows_,numCols_);
 	TermPosition atThisPoint, returnTo;
 	for(int j = ymin; j < ymax; j++) {
-		for(int i = xmin; i < xmax; ) {
+        VTermScreenCell cell,last;
+
+        for(int i = xmin; i < xmax;) {
+            last = cell;
+            cell = fetchCell(pos);
+            int tw = 0;
+
 			TermPosition ph_pos(j,i,numRows_,numCols_);
 			//PhyPos ph_pos = { .prow = j + rowOffset, .pcol = i + colOffset };
 			//VTermPos pos = { .row = j - scrollOffset_, .col = i };
 			//VTermPos pos = vtermPos(ph_pos);
 
-			VTermScreenCell cell = fetchCell(pos);
+            auto attrs_equal = [](VTermScreenCell&a,VTermScreenCell&b){return
+                        a.attrs.bold == b.attrs.bold;}; // TODO rest of fields
+            auto colours_equal = [](VTermScreenCell&a,VTermScreenCell&b){return memcmp(&a.fg,&b.fg,sizeof(VTermColor))==0 && memcmp(&a.bg,&b.bg,sizeof(VTermColor))==0;};
+            while(i == xmin ||
+                  (i < xmax && cell.width == last.width && colours_equal(cell,last) && attrs_equal(cell,last))) {
 
+                if(pos.col==cursorPosition_.col && pos.row==cursorPosition_.row) paint_cursor = true;
+                // copy chars to string buffer
+                //qDebug() << "This cell: " << QString::fromUcs4(cell.chars);
+                //if(cell.chars[0] != '\n' && cell.chars[0] != '\r') {
+                if(!QFontMetrics(font()).inFontUcs4(cell.chars[0]))
+                    qDebug() << QString::fromUcs4(cell.chars) << "not in font!";
+                if(cell.chars[0])
+                    currentFragment.append(QString::fromUcs4(cell.chars,1));
+                else
+                    currentFragment.append(' ');
+                //}
+
+                tw += cell.width;
+
+                last = cell;
+
+                for(int k=0;k<cell.width;++k,++pos);
+                i+= cell.width;
+                cell = fetchCell(pos);
+
+            }
+
+            //qDebug() << "i:" << i << "j: " << j << "flen:" << currentFragment.length() << "Fragment: " << currentFragment;
+#if 0
 			if(textDirection == LTR && QChar(cell.chars[0]).direction() == QChar::DirR) {
 				textDirection = RTL;
 				atThisPoint = pos;
@@ -224,8 +269,6 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 				cell = fetchCell(pos);
 			}
 
-
-
 			/* Invert the RV attribute if this cell is selected */
 			if(hasHighlight_) {
 				VTermPos start = highlightStartPos_, stop = highlightEndPos_;
@@ -237,23 +280,28 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 					cell.attrs.reverse = !cell.attrs.reverse;
 			}
 
+#endif
 			int cursor_here = pos.row == cursorPosition_.row && pos.col == cursorPosition_.col;
 			int cursor_visible = cursorBlinkState_ || !hasFocus();
 
 			QFont fnt(font());
-			if(cell.attrs.bold)
+            //fnt.setStyleStrategy(QFont::StyleStrategy(QFont::PreferBitmap | QFont::NoAntialias));
+//			fnt.setKerning(false);
+
+
+            if(last.attrs.bold)
 				fnt.setWeight(QFont::Bold);
-			if(cell.attrs.underline)
+            if(last.attrs.underline)
 				fnt.setUnderline(true);
-			if(cell.attrs.italic)
+            if(last.attrs.italic)
 				fnt.setItalic(true);
-			if(cell.attrs.strike)
+            if(last.attrs.strike)
 				fnt.setStrikeOut(true);
 
-			QColor fg(cell.fg.red,cell.fg.green,cell.fg.blue);
-			QColor bg(cell.bg.red,cell.bg.green,cell.bg.blue);
-
-			if(cell.attrs.reverse || (cursor_visible && cursor_here && cursorShape_ == VTERM_PROP_CURSORSHAPE_BLOCK)) {
+            QColor fg(last.fg.red,last.fg.green,last.fg.blue);
+            QColor bg(last.bg.red,last.bg.green,last.bg.blue);
+//goto zher;
+            if(last.attrs.reverse){// || (cursor_visible && cursor_here && cursorShape_ == VTERM_PROP_CURSORSHAPE_BLOCK)) {
 				p.setPen(bg);
 				p.setBackground(fg);
 			} else {
@@ -261,19 +309,56 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 				p.setBackground(bg);
 			}
 
+zher:
 			p.setFont(fnt);
+            //if(last.chars[0] == 0) { // empty cell
+              //  p.fillRect(ph_pos.col*cellWidth_, ph_pos.row*cellHeight_,cellWidth_*tw,cellHeight_, p.background());
+                //totalText.append(' ');
 
-			if(cell.chars[0] == 0) { // empty cell
-				p.fillRect(ph_pos.col*cellWidth_, ph_pos.row*cellHeight_,cellWidth_*cell.width,cellHeight_, p.background());
+            //} else if(last.chars[0] != 0) { // there is something here
+				//QString chr = "a";//QString::fromUcs4(cell.chars);
+                p.fillRect(ph_pos.col*cellWidth_, ph_pos.row*cellHeight_,cellWidth_*tw,cellHeight_,p.background());
+				//totalText.append(cell.chars[0]);
+				//QGlyphRun qgr;
+				//QVector<QPointF> positions;
+				//QVector<quint32> idx;
+				//idx.append('a');
+				//positions.append(QPointF(0,0));
+				//qgr.setRawFont(QRawFont::fromFont(font()));
+				//qgr.setPositions(positions);
+				//qgr.setGlyphIndexes(idx);
+				//p.drawText(ph_pos.col*cellWidth_, ph_pos.row*cellHeight_,cellWidth_*cell.width,cellHeight_,0,chr);
+				//p.drawStaticText(ph_pos.col*cellWidth_, ph_pos.row*cellHeight_,QStaticText(chr));
+				//p.drawGlyphRun(QPointF(ph_pos.col*cellWidth_,ph_pos.row*cellHeight_), qgr);
+                //QTextLayout l(QString::fromUcs4(cell.chars),fnt);
+                //l.draw(&p,QPointF(ph_pos.col*cellWidth_,ph_pos.row*cellHeight_));
+               // qDebug() << "drawing" << currentFragment << "at" << pos.col;
+                QFontMetrics qfm = p.fontMetrics();
+                int actualwidth;
+                if(qfm.width(currentFragment) == tw*cellWidth_) {
+                    //qDebug() << "fragment"  << currentFragment << "is correctly sized";
+                    p.drawText(ph_pos.col*cellWidth_, ph_pos.row*cellHeight_,cellWidth_*tw,cellHeight_,0,currentFragment);
 
-			} else if(cell.chars[0] != 0) { // there is something here
-				QString chr = QString::fromUcs4(cell.chars);
-				p.fillRect(ph_pos.col*cellWidth_, ph_pos.row*cellHeight_,cellWidth_*cell.width,cellHeight_,p.background());
-				p.drawText(ph_pos.col*cellWidth_, ph_pos.row*cellHeight_,cellWidth_*cell.width,cellHeight_,0,chr);
-			}
+                } else {
+                    QRectF fragmentBoundary = qfm.boundingRect(currentFragment);
+                    qDebug() << "fragment" << currentFragment << "should be" << tw*cellWidth_ << "but measures" << fragmentBoundary.width();
+                    p.save();
+                    p.scale(tw*cellWidth_/fragmentBoundary.width(),cellHeight_/fragmentBoundary.height());
+                    p.drawText(ph_pos.col*fragmentBoundary.width()/tw, ph_pos.row*fragmentBoundary.height(),cellWidth_*tw,cellHeight_,0,currentFragment);
+                    p.restore();
+                }
+            //}
+            if(cursor_visible && paint_cursor) {
+                TermPosition cursor_block(cursorPosition_.row,cursorPosition_.col,numRows_,numCols_);
+                QRect cursor_area = cursor_block.rect(cellWidth_, cellHeight_);//displayRect(ph_pos);
+                if(cursorShape_ == VTERM_PROP_CURSORSHAPE_BLOCK) {
+                    p.save();
+                    p.setCompositionMode(QPainter::CompositionMode_Difference);
+                    p.fillRect(cursor_area.x(), cursor_area.y(), cursor_area.width(), cursor_area.height(), Qt::white);
 
-			if(cursor_visible && cursor_here && cursorShape_ != VTERM_PROP_CURSORSHAPE_BLOCK) {
-				QRect cursor_area = ph_pos.rect(cellWidth_, cellHeight_);//displayRect(ph_pos);
+                    p.restore();
+
+                } else {
 				switch(cursorShape_) {
 				case VTERM_PROP_CURSORSHAPE_UNDERLINE:
 					p.fillRect(cursor_area.x(), cursor_area.y()+cursor_area.height()*0.85, cursor_area.width(), cursor_area.height()*0.15, cursorColour_);
@@ -282,7 +367,11 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 					p.fillRect(cursor_area.x(), cursor_area.y(), cursor_area.width()*0.15, cursor_area.height(), cursorColour_);
 					break;
 				}
+                }
+                paint_cursor = false;
+
 			}
+#if 0
 
 			//ph_pos.pcol += cell.width * textDirection;
 			i += cell.width;// * textDirection;
@@ -292,9 +381,19 @@ void QVTermWidget::paintEvent(QPaintEvent * e) {
 				pos = returnTo;
 			}
 			if(textDirection == LTR) ++pos; else --pos;
+#endif
+            currentFragment.clear();
+            continue;
 
+//			i++;
+//			++pos;
+//			continue;
 		}
+		totalText.append('\n');
 	}
+//p.drawText(xmin*cellWidth_,ymin*cellHeight_,(xmax-xmin)*cellWidth_,(ymax-ymin)*cellHeight_,0,QString::fromUcs4(totalText.data(),totalText.count()));
+#if 0
+#endif
 	QPen pen;
 	pen.setStyle(Qt::DotLine);
 	pen.setColor(foregroundColour_);
@@ -609,7 +708,7 @@ void QVTermWidget::keyPressEvent(QKeyEvent *e) {
 	if(keyval != VTERM_KEY_NONE) //special keys like arrows
 		vterm_input_push_key(vTerm_, state, keyval);
 	else if(e->text().length()) { //printable
-		vterm_input_push_char(vTerm_, VTERM_MOD_NONE, e->text().toUcs4().at(0));
+        vterm_input_push_char(vTerm_, state, e->text().toUcs4().at(0));
 		if(unscrollOnKey_ && scrollOffset_ != 0)
 			scroll(scrollOffset_);
 	} else
@@ -844,11 +943,20 @@ void QVTermWidget::setBoldHighBright(bool v) {
 }
 
 void QVTermWidget::setFont(const QFont &fnt) {
-	QAbstractScrollArea::setFont(fnt);
-	QFontMetrics qfm(font());
-	cellWidth_ = qfm.maxWidth();
-	cellHeight_ = qfm.height();
-	setTermSize(numRows_, numCols_);
+    QFont f(fnt);
+    f.setKerning(false);
+    //f.setStyleStrategy(QFont::StyleStrategy(QFont::ForceIntegerMetrics | QFont::NoFontMerging));
+    f.setFixedPitch(true);
+    //f.setLetterSpacing(QFont::AbsoluteSpacing, 2);
+    f.setLetterSpacing(QFont::AbsoluteSpacing, 0);
+    f.setStyleStrategy(QFont::ForceIntegerMetrics);
+    QFontMetrics qfm(f);
+    cellWidth_ = qfm.width('m')+0;
+    cellHeight_ = qfm.height();
+    QAbstractScrollArea::setFont(f);
+
+    setTermSize(numRows_, numCols_);
+    //f.setStyleStrategy(QFont::ForceIntegerMetrics);
 }
 
 void QVTermWidget::setScrollBufferSize(int lines) {
@@ -917,7 +1025,7 @@ QVTermWidget::QVTermWidget(bool withAltScreen, QWidget *parent)
 	setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 	setFrameStyle(0);
 	setAttribute( Qt::WA_InputMethodEnabled);
-
+setAttribute(Qt::WA_OpaquePaintEvent);
 	setCursor(Qt::IBeamCursor);
 	verticalScrollBar()->setCursor(Qt::ArrowCursor);
 

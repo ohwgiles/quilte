@@ -47,9 +47,9 @@ PrefsDialog::PrefsDialog(QSettings &settings, QWidget *parent) :
 	connect(fontButton_, SIGNAL(clicked()), this, SLOT(getFont()));
 	QFont f;
 	f.setFamily(settings.value("font","monospace").toString());
-	f.setPointSize(settings.value("font_size",12.0).toDouble());
+    f.setPixelSize(settings.value("font_size",9).toInt());
 	fontButton_->setFont(f);
-	fontButton_->setText(f.family() + " " + QString::number(f.pointSize()) + "pt");
+    fontButton_->setText(f.family() + " " + QString::number(f.pixelSize()) + "px");
 	fontButton_->setFlat(true);
 	grid->addWidget(fontButton_, 2, 1);
 	//== DOUBLE CLICK FULL WORD
@@ -164,7 +164,7 @@ void PrefsDialog::accept() {
 	settings_.setValue("background", bgColourButton->palette().color(QPalette::Button));
 	settings_.setValue("foreground", fgColourButton->palette().color(QPalette::Button));
 	settings_.setValue("font", fontButton_->font().family());
-	settings_.setValue("font_size", fontButton_->font().pointSize());
+    settings_.setValue("font_size", fontButton_->font().pixelSize());
 	settings_.setValue("doubleclick_fullword", doubleClickFullWord_->isChecked());
 	settings_.setValue("cursor_shape", cursorShape_->checkedId());
 	settings_.setValue("cursor_blink_interval", cursorBlinkInterval_->value());

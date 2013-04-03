@@ -200,9 +200,6 @@ QString currentTitle_;
 	bool enableAltScreen_;
 	int cursorShape_;
 
-
-
-
 	VTerm *vTerm_;
 	VTermScreen *vTermScreen_;
 
