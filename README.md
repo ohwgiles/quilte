@@ -17,6 +17,29 @@ qvtermwidget
 - standalone terminal emulator widget
 - based on LeoNerd's vterm project https://launchpad.net/libvterm/
 
+compiling
+---------
+
+### Build libvterm
+
+```
+git clone https://github.com/neovim/libvterm.git
+cd libvterm
+git fetch
+git checkout 212859a30de7506c5e56bdc39af6141ddacd68f7
+make
+make install PREFIX=/home/user/libroot
+```
+
+### Build quilte
+
+Open quilte.pro in Qt Creator.
+
+Select "Projects -> Build". Add to environment variables:
+```
+LIBVTERM_DIR=/home/user/libroot
+```
+
 current state
 -------------
 - functional and useful
