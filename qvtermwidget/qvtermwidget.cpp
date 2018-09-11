@@ -20,11 +20,18 @@
 #include <QFontMetrics>
 #include <errno.h>
 #include <fcntl.h>
+#ifndef Q_OS_OSX
 #include <stropts.h>
+#endif
 #include <locale.h>
 #include <string.h>
 #include <unistd.h>
+#ifndef Q_OS_OSX
 #include <pty.h>
+#else
+#include <util.h>
+#include <sys/ioctl.h>
+#endif
 #include <signal.h>
 #include <sys/time.h>
 
